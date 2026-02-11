@@ -1,28 +1,1496 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LogExplain API | Status</title>
+    <title>LogExplain — Human-Readable Log Interpretation API</title>
+    <meta name="description"
+        content="Transform raw system logs into structured, actionable insights. Try the API live or integrate it into your projects.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        p { color: #94a3b8; font-size: 1.1rem; }
-        .card { background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        code { background: #334155; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; color: #facc15; }
-        a { color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8; }
-        a:hover { border-bottom-style: solid; }
+        /* ═══════════════════════════════════════════════════════════
+           DESIGN SYSTEM
+           ═══════════════════════════════════════════════════════════ */
+        :root {
+            --bg-primary: #06080d;
+            --bg-secondary: #0c1019;
+            --bg-card: rgba(14, 18, 30, 0.7);
+            --bg-card-hover: rgba(20, 26, 42, 0.8);
+            --bg-input: rgba(10, 14, 24, 0.9);
+            --border: rgba(56, 72, 110, 0.25);
+            --border-hover: rgba(99, 122, 180, 0.4);
+            --border-active: rgba(129, 140, 248, 0.6);
+            --text-primary: #e8ecf4;
+            --text-secondary: #8892a8;
+            --text-muted: #5a6478;
+            --accent-1: #818cf8;
+            --accent-2: #6366f1;
+            --accent-3: #4f46e5;
+            --accent-cyan: #22d3ee;
+            --accent-emerald: #34d399;
+            --accent-amber: #fbbf24;
+            --accent-rose: #fb7185;
+            --gradient-main: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%);
+            --gradient-glow: linear-gradient(135deg, rgba(129, 140, 248, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%);
+            --gradient-text: linear-gradient(135deg, #c7d2fe 0%, #818cf8 40%, #6366f1 60%, #a78bfa 100%);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 16px 64px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ═══════════════ SCROLLBAR ═══════════════ */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-1);
+        }
+
+        /* ═══════════════ BACKGROUND EFFECTS ═══════════════ */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(56, 72, 110, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 72, 110, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-1 {
+            position: fixed;
+            top: -200px;
+            right: -200px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -200px;
+            left: -200px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══════════════ NAVIGATION ═══════════════ */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 0 2rem;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(6, 8, 13, 0.75);
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .nav-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .nav-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .nav-logo span {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-main);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .nav-cta {
+            padding: 8px 20px;
+            background: var(--gradient-main);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        /* ═══════════════ MAIN CONTENT ═══════════════ */
+        main {
+            position: relative;
+            z-index: 1;
+        }
+
+        section {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* ═══════════════ HERO ═══════════════ */
+        .hero {
+            padding-top: 160px;
+            padding-bottom: 100px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            color: var(--accent-1);
+            font-weight: 500;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .hero-badge .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.5);
+            }
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.03em;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        .hero h1 .gradient {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.8;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            animation: fadeInUp 0.6s ease-out 0.3s both;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-main);
+            color: white;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--border-hover);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        /* ═══════════════ STATS BAR ═══════════════ */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 4rem;
+            animation: fadeInUp 0.6s ease-out 0.4s both;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+
+        /* ═══════════════ SECTION HEADERS ═══════════════ */
+        .section-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 580px;
+            margin: 0 auto;
+        }
+
+        /* ═══════════════ API PLAYGROUND ═══════════════ */
+        #playground {
+            padding-top: 80px;
+            padding-bottom: 80px;
+        }
+
+        .playground-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .playground-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: var(--transition);
+        }
+
+        .playground-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+        }
+
+        .method-badge {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.05em;
+        }
+
+        .method-post {
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--accent-emerald);
+        }
+
+        .method-get {
+            background: rgba(34, 211, 238, 0.15);
+            color: var(--accent-cyan);
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        textarea,
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            transition: var(--transition);
+            outline: none;
+            resize: vertical;
+        }
+
+        textarea:focus,
+        input[type="text"]:focus,
+        select:focus {
+            border-color: var(--border-active);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        textarea {
+            min-height: 140px;
+            line-height: 1.6;
+        }
+
+        select {
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238892a8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .btn-run {
+            width: 100%;
+            padding: 12px;
+            background: var(--gradient-main);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-family: var(--font-sans);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-run:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-run:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-run .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+
+        .btn-run.loading .spinner {
+            display: block;
+        }
+
+        .btn-run.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Response panel */
+        .response-panel {
+            position: relative;
+        }
+
+        .response-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .status-badge {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .status-200 {
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--accent-emerald);
+        }
+
+        .status-401 {
+            background: rgba(251, 113, 133, 0.15);
+            color: var(--accent-rose);
+        }
+
+        .status-429 {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--accent-amber);
+        }
+
+        .status-500 {
+            background: rgba(251, 113, 133, 0.15);
+            color: var(--accent-rose);
+        }
+
+        .response-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .response-output {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 6px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--accent-1);
+            font-size: 0.75rem;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background: rgba(99, 102, 241, 0.25);
+        }
+
+        /* ═══════════════ SAMPLE LOGS ═══════════════ */
+        .sample-logs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .sample-log-btn {
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 100px;
+            color: var(--accent-1);
+            font-size: 0.72rem;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sample-log-btn:hover {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        /* ═══════════════ CODE EXAMPLES ═══════════════ */
+        #integrate {
+            padding-top: 80px;
+            padding-bottom: 80px;
+        }
+
+        .code-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0;
+        }
+
+        .code-tab {
+            padding: 10px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .code-tab:hover {
+            color: var(--text-secondary);
+        }
+
+        .code-tab.active {
+            color: var(--accent-1);
+            border-bottom-color: var(--accent-2);
+        }
+
+        .code-block-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-block {
+            padding: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre;
+            display: none;
+        }
+
+        .code-block.active {
+            display: block;
+        }
+
+        .code-block .keyword {
+            color: var(--accent-1);
+        }
+
+        .code-block .string {
+            color: var(--accent-emerald);
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .code-block .url {
+            color: var(--accent-cyan);
+        }
+
+        .code-block .method {
+            color: var(--accent-amber);
+        }
+
+        .code-copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 6px 14px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: var(--radius-sm);
+            color: var(--accent-1);
+            font-size: 0.75rem;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            z-index: 2;
+        }
+
+        .code-copy-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        /* ═══════════════ FEATURES GRID ═══════════════ */
+        #features {
+            padding-top: 80px;
+            padding-bottom: 80px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gradient-main);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .feature-icon.purple {
+            background: rgba(99, 102, 241, 0.12);
+        }
+
+        .feature-icon.cyan {
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        .feature-icon.emerald {
+            background: rgba(52, 211, 153, 0.12);
+        }
+
+        .feature-icon.amber {
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .feature-icon.rose {
+            background: rgba(251, 113, 133, 0.12);
+        }
+
+        .feature-icon.blue {
+            background: rgba(56, 189, 248, 0.12);
+        }
+
+        .feature-card h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* ═══════════════ FOOTER ═══════════════ */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--accent-1);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ═══════════════ ANIMATIONS ═══════════════ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .animate-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══════════════ JSON SYNTAX ═══════════════ */
+        .json-key {
+            color: #818cf8;
+        }
+
+        .json-string {
+            color: #34d399;
+        }
+
+        .json-number {
+            color: #fbbf24;
+        }
+
+        .json-boolean {
+            color: #fb7185;
+        }
+
+        .json-null {
+            color: #8892a8;
+        }
+
+        .json-bracket {
+            color: #5a6478;
+        }
+
+        /* ═══════════════ MOBILE MENU ═══════════════ */
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        /* ═══════════════ RESPONSIVE ═══════════════ */
+        @media (max-width: 968px) {
+            .playground-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .stats-bar {
+                gap: 1.5rem;
+                flex-wrap: wrap;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
+
 <body>
-    <div class="card">
-        <h1>LogExplain API is Running 🚀</h1>
-        <p>This is a headless API service.</p>
-        <p>Documentation available at <a href="/docs">/docs</a></p>
-        <p>Test matching at <a href="/v1/health">/v1/health</a></p>
-        <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.7;">
-            Powered by Vercel Serverless Functions
+
+    <div class="bg-grid"></div>
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <!-- ═══════════════ NAVIGATION ═══════════════ -->
+    <nav>
+        <div class="nav-inner">
+            <a href="#" class="nav-logo">
+                <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="28" height="28" rx="6" fill="url(#grad)" />
+                    <path d="M7 9h14M7 14h10M7 19h6" stroke="white" stroke-width="2" stroke-linecap="round" />
+                    <defs>
+                        <linearGradient id="grad" x1="0" y1="0" x2="28" y2="28">
+                            <stop stop-color="#818cf8" />
+                            <stop offset="1" stop-color="#4f46e5" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span>LogExplain</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#playground">Playground</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#integrate">Integrate</a></li>
+                <li><a href="/docs" class="nav-cta">API Docs</a></li>
+            </ul>
+            <button class="mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('show')"
+                aria-label="Toggle menu">☰</button>
+        </div>
+    </nav>
+
+    <main>
+
+        <!-- ═══════════════ HERO ═══════════════ -->
+        <section class="hero">
+            <div class="hero-badge">
+                <div class="pulse"></div>
+                API v1.0 — Live &amp; Running
+            </div>
+            <h1>
+                Turn Cryptic Logs Into<br>
+                <span class="gradient">Actionable Insights</span>
+            </h1>
+            <p>
+                LogExplain is a serverless API that converts raw system logs into
+                structured explanations, root-cause analysis, severity scores,
+                and recommended actions — in milliseconds.
+            </p>
+            <div class="hero-actions">
+                <a href="#playground" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M5 3l6 5-6 5V3z" fill="currentColor" />
+                    </svg>
+                    Try it Live
+                </a>
+                <a href="#integrate" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 2h4v4M14 2L8 8M6 3H3v10h10v-3" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    View Code
+                </a>
+            </div>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value">28+</div>
+                    <div class="stat-label">Log Patterns</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">6</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">&lt;50ms</div>
+                    <div class="stat-label">Response Time</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">Deterministic</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ API PLAYGROUND ═══════════════ -->
+        <section id="playground" class="animate-in">
+            <div class="section-header">
+                <h2>API Playground</h2>
+                <p>Paste a raw log below and see how LogExplain interprets it in real-time.</p>
+            </div>
+
+            <div style="max-width: 600px; margin: 0 auto 1.5rem;">
+                <div class="input-group">
+                    <label for="endpoint-select">Endpoint</label>
+                    <select id="endpoint-select">
+                        <option value="explain">POST /v1/logs/explain — Single Log</option>
+                        <option value="batch">POST /v1/logs/batch-explain — Batch Logs</option>
+                        <option value="incident">POST /v1/logs/incident-summary — Incident Summary</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="api-key-input">API Key</label>
+                    <input type="text" id="api-key-input"
+                        placeholder="Enter your API key (e.g. logexplain_dev_key_2026)" value="">
+                </div>
+            </div>
+
+            <div class="playground-grid">
+                <!-- Request Panel -->
+                <div class="playground-card">
+                    <div class="card-header">
+                        <span class="card-title">Request</span>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    <div class="sample-logs">
+                        <button class="sample-log-btn" onclick="insertSample('db')">DB Error</button>
+                        <button class="sample-log-btn" onclick="insertSample('auth')">Auth Failure</button>
+                        <button class="sample-log-btn" onclick="insertSample('network')">Network</button>
+                        <button class="sample-log-btn" onclick="insertSample('memory')">Memory</button>
+                        <button class="sample-log-btn" onclick="insertSample('api')">API 500</button>
+                        <button class="sample-log-btn" onclick="insertSample('timeout')">Timeout</button>
+                    </div>
+                    <div class="input-group">
+                        <label for="log-input">Raw Log(s)</label>
+                        <textarea id="log-input"
+                            placeholder="Paste your raw log here...&#10;&#10;Example:&#10;2025-01-15T14:32:01Z ERROR [PostgreSQL] Connection refused to database server at 10.0.1.50:5432 - max connections reached (max_connections=100)"></textarea>
+                    </div>
+                    <button class="btn-run" id="run-btn" onclick="runQuery()">
+                        <div class="spinner"></div>
+                        <span class="btn-text">▶ Run Query</span>
+                    </button>
+                </div>
+
+                <!-- Response Panel -->
+                <div class="playground-card">
+                    <div class="card-header">
+                        <span class="card-title">Response</span>
+                        <span class="status-badge" id="status-badge" style="display:none;"></span>
+                        <span class="response-time" id="response-time"></span>
+                    </div>
+                    <div class="response-panel">
+                        <button class="copy-btn" id="copy-response-btn" onclick="copyResponse()"
+                            style="display:none;">Copy</button>
+                        <div class="response-output" id="response-output">
+                            <span class="json-bracket">{</span>
+                            <span class="json-key">"message"</span>: <span class="json-string">"Paste a log and click
+                                Run to see the response here"</span>,
+                            <span class="json-key">"hint"</span>: <span class="json-string">"Try clicking one of the
+                                sample log buttons above"</span>
+                            <span class="json-bracket">}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ FEATURES ═══════════════ -->
+        <section id="features" class="animate-in">
+            <div class="section-header">
+                <h2>Why LogExplain?</h2>
+                <p>Purpose-built for log interpretation — not just storage or collection.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon purple">🧠</div>
+                    <h3>Human-Readable Explanations</h3>
+                    <p>Converts cryptic error codes and stack traces into plain-English summaries anyone can understand.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon cyan">🎯</div>
+                    <h3>Root-Cause Analysis</h3>
+                    <p>Identifies the underlying cause of each log entry, not just the symptom. Pinpoints actionable
+                        fixes.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon emerald">📊</div>
+                    <h3>Severity Scoring (0-100)</h3>
+                    <p>Quantitative severity classification using pattern matching, keyword analysis, and context-aware
+                        scoring.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon amber">🔗</div>
+                    <h3>Incident Correlation</h3>
+                    <p>Detects causal relationships across multiple logs — e.g., "DB failure caused cascading API
+                        timeouts."</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon rose">⚡</div>
+                    <h3>Deterministic Output</h3>
+                    <p>No LLM randomness. Same input always produces the same structured JSON output. Perfect for CI/CD.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon blue">🌍</div>
+                    <h3>Source-Agnostic</h3>
+                    <p>Works with logs from any platform — AWS, GCP, Nginx, PostgreSQL, Docker, Kubernetes, custom apps.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ CODE EXAMPLES ═══════════════ -->
+        <section id="integrate" class="animate-in">
+            <div class="section-header">
+                <h2>Integrate in Minutes</h2>
+                <p>Add log interpretation to your app with a single API call.</p>
+            </div>
+
+            <div style="max-width: 800px; margin: 0 auto;">
+                <div class="code-tabs">
+                    <button class="code-tab active" onclick="switchTab('curl')">cURL</button>
+                    <button class="code-tab" onclick="switchTab('python')">Python</button>
+                    <button class="code-tab" onclick="switchTab('javascript')">JavaScript</button>
+                    <button class="code-tab" onclick="switchTab('go')">Go</button>
+                </div>
+                <div class="code-block-wrapper">
+                    <button class="code-copy-btn" onclick="copyCode()">Copy</button>
+
+                    <pre class="code-block active" id="code-curl"><span class="comment"># Explain a single log</span>
+<span class="method">curl</span> -X POST <span class="url">https://log-explain.vercel.app/v1/logs/explain</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -H <span class="string">"x-api-key: YOUR_API_KEY"</span> \
+  -d <span class="string">'{
+    "log": "2025-01-15 ERROR [PostgreSQL] Connection refused - max connections reached"
+  }'</span></pre>
+
+                    <pre class="code-block"
+                        id="code-python"><span class="keyword">import</span> requests
+
+<span class="comment"># LogExplain API Client</span>
+API_URL = <span class="string">"https://log-explain.vercel.app/v1/logs/explain"</span>
+API_KEY = <span class="string">"YOUR_API_KEY"</span>
+
+response = requests.post(
+    API_URL,
+    headers={
+        <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>,
+        <span class="string">"x-api-key"</span>: API_KEY,
+    },
+    json={
+        <span class="string">"log"</span>: <span class="string">"2025-01-15 ERROR [PostgreSQL] Connection refused - max connections reached"</span>
+    }
+)
+
+result = response.json()
+<span class="keyword">print</span>(f<span class="string">"Severity: {result['severity']['score']}/100"</span>)
+<span class="keyword">print</span>(f<span class="string">"Summary: {result['explanation']['summary']}"</span>)
+<span class="keyword">print</span>(f<span class="string">"Fix: {result['explanation']['recommendedActions']}"</span>)</pre>
+
+                    <pre class="code-block" id="code-javascript"><span class="comment">// LogExplain API Client (Node.js / Browser)</span>
+<span class="keyword">const</span> API_URL = <span class="string">"https://log-explain.vercel.app/v1/logs/explain"</span>;
+<span class="keyword">const</span> API_KEY = <span class="string">"YOUR_API_KEY"</span>;
+
+<span class="keyword">const</span> response = <span class="keyword">await</span> <span class="method">fetch</span>(API_URL, {
+  method: <span class="string">"POST"</span>,
+  headers: {
+    <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>,
+    <span class="string">"x-api-key"</span>: API_KEY,
+  },
+  body: JSON.stringify({
+    log: <span class="string">"2025-01-15 ERROR [PostgreSQL] Connection refused - max connections reached"</span>
+  })
+});
+
+<span class="keyword">const</span> result = <span class="keyword">await</span> response.json();
+console.log(<span class="string">`Severity: ${result.severity.score}/100`</span>);
+console.log(<span class="string">`Summary: ${result.explanation.summary}`</span>);
+console.log(<span class="string">`Fix: ${result.explanation.recommendedActions}`</span>);</pre>
+
+                    <pre class="code-block" id="code-go"><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"bytes"</span>
+    <span class="string">"encoding/json"</span>
+    <span class="string">"fmt"</span>
+    <span class="string">"net/http"</span>
+)
+
+<span class="keyword">func</span> <span class="method">main</span>() {
+    apiURL := <span class="string">"https://log-explain.vercel.app/v1/logs/explain"</span>
+    apiKey := <span class="string">"YOUR_API_KEY"</span>
+
+    body, _ := json.Marshal(<span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>{
+        <span class="string">"log"</span>: <span class="string">"2025-01-15 ERROR [PostgreSQL] Connection refused - max connections reached"</span>,
+    })
+
+    req, _ := http.NewRequest(<span class="string">"POST"</span>, apiURL, bytes.NewBuffer(body))
+    req.Header.Set(<span class="string">"Content-Type"</span>, <span class="string">"application/json"</span>)
+    req.Header.Set(<span class="string">"x-api-key"</span>, apiKey)
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> { fmt.Println(err); <span class="keyword">return</span> }
+    <span class="keyword">defer</span> resp.Body.Close()
+
+    <span class="keyword">var</span> result <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">interface</span>{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    fmt.Printf(<span class="string">"Result: %+v\n"</span>, result)
+}</pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ═══════════════ FOOTER ═══════════════ -->
+    <footer>
+        <p>
+            Built for fun — my first API project &nbsp;·&nbsp;
+            <a href="https://github.com/Spacey6849/LogExplain" target="_blank">GitHub</a> &nbsp;·&nbsp;
+            <a href="/docs">API Documentation</a>
         </p>
-    </div>
+    </footer>
+
+    <script>
+        // ═══════════════ SAMPLE LOGS ═══════════════
+        const sampleLogs = {
+            db: '2025-01-15T14:32:01Z ERROR [PostgreSQL] Connection refused to database server at 10.0.1.50:5432 - max connections reached (max_connections=100)',
+            auth: '2025-06-20T09:15:33Z WARN [AuthService] Failed login attempt for user admin@company.com from IP 192.168.1.105 - invalid credentials (attempt 4/5)',
+            network: '2025-03-10T22:45:12Z ERROR [nginx] upstream timed out (110: Connection timed out) while connecting to upstream, client: 203.0.113.50, server: api.example.com',
+            memory: '2025-07-01T03:22:45Z CRITICAL [SystemMonitor] Memory usage exceeded threshold: 95.2% used (15.2GB/16GB) - OOM killer may be triggered',
+            api: '2025-08-15T11:30:00Z ERROR [ExpressServer] Internal Server Error 500 on POST /api/v2/users - TypeError: Cannot read properties of undefined',
+            timeout: '2025-09-05T16:45:22Z ERROR [HTTPClient] Request timeout after 30000ms to https://payment-gateway.example.com/charge - ETIMEDOUT'
+        };
+
+        function insertSample(type) {
+            const textarea = document.getElementById('log-input');
+            const endpoint = document.getElementById('endpoint-select');
+
+            if (endpoint.value === 'batch' || endpoint.value === 'incident') {
+                // Insert multiple logs for batch/incident
+                textarea.value = [sampleLogs.db, sampleLogs.auth, sampleLogs.memory].join('\n');
+            } else {
+                textarea.value = sampleLogs[type];
+            }
+        }
+
+        // ═══════════════ API CALL ═══════════════
+        async function runQuery() {
+            const logInput = document.getElementById('log-input').value.trim();
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            const endpoint = document.getElementById('endpoint-select').value;
+            const runBtn = document.getElementById('run-btn');
+            const outputEl = document.getElementById('response-output');
+            const statusBadge = document.getElementById('status-badge');
+            const responseTime = document.getElementById('response-time');
+            const copyBtn = document.getElementById('copy-response-btn');
+
+            if (!logInput) {
+                outputEl.innerHTML = syntaxHighlightJSON({ error: 'Please enter a log to analyze' });
+                return;
+            }
+
+            if (!apiKey) {
+                outputEl.innerHTML = syntaxHighlightJSON({ error: 'Please enter your API key' });
+                return;
+            }
+
+            // Build request body
+            let body = {};
+            let url = '';
+            const baseUrl = window.location.origin;
+
+            if (endpoint === 'explain') {
+                url = `${baseUrl}/v1/logs/explain`;
+                body = { log: logInput };
+            } else if (endpoint === 'batch') {
+                url = `${baseUrl}/v1/logs/batch-explain`;
+                body = { logs: logInput.split('\n').filter(l => l.trim()) };
+            } else {
+                url = `${baseUrl}/v1/logs/incident-summary`;
+                body = { logs: logInput.split('\n').filter(l => l.trim()) };
+            }
+
+            // Loading state
+            runBtn.classList.add('loading');
+            runBtn.disabled = true;
+            outputEl.textContent = 'Sending request...';
+            statusBadge.style.display = 'none';
+            copyBtn.style.display = 'none';
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                    },
+                    body: JSON.stringify(body),
+                });
+
+                const elapsed = Math.round(performance.now() - startTime);
+                const data = await response.json();
+
+                // Update status
+                statusBadge.style.display = 'inline-block';
+                statusBadge.textContent = `${response.status} ${response.statusText}`;
+                statusBadge.className = `status-badge status-${response.status}`;
+                responseTime.textContent = `${elapsed}ms`;
+                copyBtn.style.display = 'block';
+
+                // Render response
+                outputEl.innerHTML = syntaxHighlightJSON(data);
+            } catch (err) {
+                statusBadge.style.display = 'inline-block';
+                statusBadge.textContent = 'ERR';
+                statusBadge.className = 'status-badge status-500';
+                outputEl.innerHTML = syntaxHighlightJSON({
+                    error: 'Network error',
+                    message: err.message,
+                    hint: 'Make sure the API is running and CORS is enabled'
+                });
+            } finally {
+                runBtn.classList.remove('loading');
+                runBtn.disabled = false;
+            }
+        }
+
+        // ═══════════════ JSON SYNTAX HIGHLIGHTING ═══════════════
+        function syntaxHighlightJSON(obj) {
+            const json = JSON.stringify(obj, null, 2);
+            return json.replace(
+                /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+                function (match) {
+                    let cls = 'json-number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'json-key';
+                            match = match.slice(0, -1); // Remove colon
+                            return `<span class="${cls}">${escapeHtml(match)}</span>:`;
+                        } else {
+                            cls = 'json-string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'json-boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'json-null';
+                    }
+                    return `<span class="${cls}">${escapeHtml(match)}</span>`;
+                }
+            );
+        }
+
+        function escapeHtml(str) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return str.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // ═══════════════ COPY FUNCTIONS ═══════════════
+        function copyResponse() {
+            const output = document.getElementById('response-output').textContent;
+            navigator.clipboard.writeText(output).then(() => {
+                const btn = document.getElementById('copy-response-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        function copyCode() {
+            const activeBlock = document.querySelector('.code-block.active');
+            navigator.clipboard.writeText(activeBlock.textContent).then(() => {
+                const btn = document.querySelector('.code-copy-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        // ═══════════════ CODE TABS ═══════════════
+        function switchTab(lang) {
+            document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.code-block').forEach(b => b.classList.remove('active'));
+            document.querySelector(`#code-${lang}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ═══════════════ SCROLL ANIMATIONS ═══════════════
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.animate-in').forEach(el => observer.observe(el));
+
+        // ═══════════════ KEYBOARD SHORTCUT ═══════════════
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                runQuery();
+            }
+        });
+    </script>
+
 </body>
+
 </html>
