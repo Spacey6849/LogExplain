@@ -13,7 +13,6 @@ async function bootstrapServer() {
         logger: ['error', 'warn'],
     });
 
-    // Basic Security
     app.enableCors({ origin: '*' });
 
     app.useGlobalPipes(
@@ -27,21 +26,27 @@ async function bootstrapServer() {
 
     app.setGlobalPrefix('v1');
 
-    // Re-enable Swagger
+    // Generate OpenAPI spec and serve as JSON only (no Swagger UI from server)
     const swaggerConfig = new DocumentBuilder()
         .setTitle('LogExplain API')
-        .setDescription('Serverless Log Interpretation API')
-        .setVersion('1.0')
+        .setDescription('Human-Readable Log Interpretation API — converts raw system logs into structured explanations, root-cause analysis, severity classification, and recommended actions.')
+        .setVersion('1.0.0')
         .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')
+        .addTag('logs', 'Log interpretation endpoints')
+        .addTag('health', 'Health check endpoint')
         .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('docs', app, document);
+
+    // Serve the OpenAPI JSON spec at /api-spec (static Swagger UI will fetch this)
+    const expressApp = app.getHttpAdapter().getInstance();
+    expressApp.get('/api-spec', (_req: any, res: any) => {
+        res.json(document);
+    });
 
     await app.init();
-    const instance = app.getHttpAdapter().getInstance();
     console.log('Server bootstrapped successfully');
-    return instance;
+    return expressApp;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
