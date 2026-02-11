@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogExplain — Dashboard</title>
+    <meta name="description" content="Manage your LogExplain API keys and monitor usage.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0b0f;
+            --bg-secondary: #0f1117;
+            --bg-card: #141620;
+            --bg-input: #0f1117;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(99, 102, 241, 0.3);
+            --text-primary: #f0f1f5;
+            --text-secondary: #9ea3b5;
+            --text-muted: #5a6478;
+            --accent-1: #818cf8;
+            --accent-2: #6366f1;
+            --accent-3: #4f46e5;
+            --accent-emerald: #34d399;
+            --accent-amber: #fbbf24;
+            --accent-rose: #fb7185;
+            --accent-cyan: #22d3ee;
+            --gradient-main: linear-gradient(135deg, #818cf8, #6366f1, #4f46e5);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --transition: all 0.2s ease;
+            --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ═══════ Loading Overlay ═══════ */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-2);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ═══════ Top Bar ═══════ */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(10, 11, 15, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .topbar-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        .topbar-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gradient-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: white;
+        }
+
+        .btn-logout {
+            padding: 6px 14px;
+            background: rgba(251, 113, 133, 0.1);
+            border: 1px solid rgba(251, 113, 133, 0.25);
+            border-radius: var(--radius-sm);
+            color: var(--accent-rose);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-sans);
+        }
+
+        .btn-logout:hover {
+            background: rgba(251, 113, 133, 0.2);
+        }
+
+        /* ═══════ Sidebar + Main Layout ═══════ */
+        .layout {
+            display: flex;
+            min-height: calc(100vh - 64px);
+        }
+
+        .sidebar {
+            width: 240px;
+            padding: 1.5rem 1rem;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 4px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .sidebar-nav a:hover {
+            background: rgba(99, 102, 241, 0.08);
+            color: var(--text-primary);
+        }
+
+        .sidebar-nav a.active {
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--accent-1);
+        }
+
+        .sidebar-nav .icon {
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1000px;
+        }
+
+        /* ═══════ Page Sections ═══════ */
+        .page-section {
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.4rem;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        /* ═══════ Stat Cards ═══════ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .stat-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ═══════ Cards ═══════ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        /* ═══════ API Key List ═══════ */
+        .key-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .key-item:last-child {
+            border-bottom: none;
+        }
+
+        .key-info {
+            flex: 1;
+        }
+
+        .key-name {
+            font-weight: 600;
+            font-size: 0.92rem;
+            margin-bottom: 4px;
+        }
+
+        .key-prefix {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--accent-1);
+        }
+
+        .key-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .key-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .key-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .key-badge.active {
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--accent-emerald);
+        }
+
+        .key-badge.revoked {
+            background: rgba(251, 113, 133, 0.12);
+            color: var(--accent-rose);
+        }
+
+        /* ═══════ Buttons ═══════ */
+        .btn {
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-sans);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-main);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-ghost {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        /* ═══════ Modal ═══════ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            width: 100%;
+            max-width: 460px;
+            animation: modalIn 0.2s ease;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal p {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .modal .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+        }
+
+        .modal .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-2);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* ═══════ Key Reveal ═══════ */
+        .key-reveal {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .key-reveal-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent-emerald);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .key-reveal-value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            word-break: break-all;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-sm);
+        }
+
+        .key-reveal-warning {
+            font-size: 0.78rem;
+            color: var(--accent-amber);
+            margin-top: 8px;
+        }
+
+        /* ═══════ Chart Container ═══════ */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 1rem;
+        }
+
+        .chart-bar-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 160px;
+            padding: 0 4px;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chart-bar {
+            width: 100%;
+            min-width: 8px;
+            max-width: 32px;
+            background: var(--gradient-main);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.4s ease;
+            position: relative;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.85;
+        }
+
+        .chart-bar-label {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent-1);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .chart-bar:hover .chart-tooltip {
+            opacity: 1;
+        }
+
+        /* ═══════ Endpoint Breakdown ═══════ */
+        .endpoint-list {
+            list-style: none;
+        }
+
+        .endpoint-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .endpoint-item:last-child {
+            border-bottom: none;
+        }
+
+        .endpoint-name {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .endpoint-count {
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--accent-1);
+        }
+
+        .endpoint-bar-bg {
+            flex: 1;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0 12px;
+        }
+
+        .endpoint-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--gradient-main);
+            transition: width 0.4s;
+        }
+
+        /* ═══════ Profile Form ═══════ */
+        .profile-form .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .profile-form label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .profile-form input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+        }
+
+        .profile-form input:focus {
+            outline: none;
+            border-color: var(--accent-2);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .profile-form input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ═══════ Toast ═══════ */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 200;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            color: var(--accent-emerald);
+        }
+
+        .toast.error {
+            background: rgba(251, 113, 133, 0.15);
+            border: 1px solid rgba(251, 113, 133, 0.3);
+            color: var(--accent-rose);
+        }
+
+        /* ═══════ Empty State ═══════ */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h4 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* ═══════ Responsive ═══════ */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .key-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .key-actions {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loader"></div>
+        <span style="color: var(--text-muted); font-size: 0.88rem;">Loading dashboard...</span>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="topbar">
+        <a href="/" class="topbar-logo">
+            <svg viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="6" fill="url(#grad)" />
+                <path d="M7 9h14M7 14h10M7 19h6" stroke="white" stroke-width="2" stroke-linecap="round" />
+                <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="28" y2="28">
+                        <stop stop-color="#818cf8" />
+                        <stop offset="1" stop-color="#4f46e5" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span>LogExplain</span>
+        </a>
+        <div class="topbar-right">
+            <div class="topbar-user">
+                <div class="topbar-avatar" id="user-avatar">?</div>
+                <span id="user-email">Loading...</span>
+            </div>
+            <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- Layout -->
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <ul class="sidebar-nav">
+                <li><a href="#" class="active" onclick="showPage('overview', this)" data-page="overview">
+                        <span class="icon">📊</span> Overview
+                    </a></li>
+                <li><a href="#" onclick="showPage('keys', this)" data-page="keys">
+                        <span class="icon">🔑</span> API Keys
+                    </a></li>
+                <li><a href="#" onclick="showPage('usage', this)" data-page="usage">
+                        <span class="icon">📈</span> Usage
+                    </a></li>
+                <li><a href="#" onclick="showPage('profile', this)" data-page="profile">
+                        <span class="icon">👤</span> Profile
+                    </a></li>
+                <li style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                    <a href="/docs">
+                        <span class="icon">📚</span> API Docs
+                    </a>
+                </li>
+                <li><a href="/">
+                        <span class="icon">🏠</span> Homepage
+                    </a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <!-- ════ Overview Page ════ -->
+            <section id="page-overview" class="page-section active">
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-subtitle">Welcome back! Here's your API overview.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Requests</div>
+                        <div class="stat-value" id="overview-total">—</div>
+                        <div class="stat-meta">Last 30 days</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-value" id="overview-success">—</div>
+                        <div class="stat-meta">2xx & 3xx responses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Response</div>
+                        <div class="stat-value" id="overview-avg-time">—</div>
+                        <div class="stat-meta">Milliseconds</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Keys</div>
+                        <div class="stat-value" id="overview-keys">—</div>
+                        <div class="stat-meta">API keys in use</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Requests (Last 30 Days)</span>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-bar-container" id="overview-chart"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Quick Actions</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary"
+                            onclick="showPage('keys', document.querySelector('[data-page=keys]')); openCreateKeyModal();">
+                            + Generate API Key
+                        </button>
+                        <a href="/docs" class="btn btn-ghost">View API Docs</a>
+                        <a href="/#playground" class="btn btn-ghost">Try Playground</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ════ API Keys Page ════ -->
+            <section id="page-keys" class="page-section">
+                <h1 class="page-title">API Keys</h1>
+                <p class="page-subtitle">Generate and manage your API keys. Keys are hashed — you can only see them once
+                    at creation.</p>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Your Keys</span>
+                        <button class="btn btn-primary" onclick="openCreateKeyModal()">+ Generate Key</button>
+                    </div>
+                    <div id="keys-list">
+                        <div class="empty-state">
+                            <div class="icon">🔑</div>
+                            <h4>No API keys yet</h4>
+                            <p>Generate your first API key to start using the LogExplain API.</p>
+                            <button class="btn btn-primary" onclick="openCreateKeyModal()">Generate Your First
+                                Key</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ════ Usage Page ════ -->
+            <section id="page-usage" class="page-section">
+                <h1 class="page-title">Usage Analytics</h1>
+                <p class="page-subtitle">Monitor your API request volume, performance, and endpoint breakdown.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Requests</div>
+                        <div class="stat-value" id="usage-total">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Successful</div>
+                        <div class="stat-value" id="usage-success">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Failed</div>
+                        <div class="stat-value" id="usage-failed">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Response</div>
+                        <div class="stat-value" id="usage-avg">—</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Daily Requests</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-ghost" onclick="loadUsage(7)" style="font-size:0.75rem">7d</button>
+                            <button class="btn btn-ghost" onclick="loadUsage(30)" style="font-size:0.75rem">30d</button>
+                            <button class="btn btn-ghost" onclick="loadUsage(90)" style="font-size:0.75rem">90d</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-bar-container" id="usage-chart"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Endpoint Breakdown</span>
+                    </div>
+                    <ul class="endpoint-list" id="endpoint-list">
+                        <li class="empty-state">
+                            <p>No usage data yet. Make some API calls to see the breakdown.</p>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ════ Profile Page ════ -->
+            <section id="page-profile" class="page-section">
+                <h1 class="page-title">Profile</h1>
+                <p class="page-subtitle">Manage your account settings.</p>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Account Information</span>
+                    </div>
+                    <form class="profile-form" onsubmit="handleUpdateProfile(event)">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="profile-email" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="profile-name" placeholder="Enter your full name">
+                        </div>
+                        <div class="form-group">
+                            <label>Account Created</label>
+                            <input type="text" id="profile-created" disabled>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+
+                <div class="card" style="border-color: rgba(239, 68, 68, 0.15);">
+                    <div class="card-header">
+                        <span class="card-title" style="color: var(--accent-rose);">Danger Zone</span>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Signing out will clear your session. You can always sign back in.
+                    </p>
+                    <button class="btn btn-danger" onclick="handleLogout()">Sign Out of All Devices</button>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Create Key Modal -->
+    <div class="modal-overlay" id="create-key-modal">
+        <div class="modal">
+            <h3>Generate API Key</h3>
+            <p>Give your key a name so you can identify it later.</p>
+
+            <div id="key-created-view" style="display:none;">
+                <div class="key-reveal">
+                    <div class="key-reveal-label">Your new API key</div>
+                    <div class="key-reveal-value" id="new-key-value" onclick="copyNewKey()">
+                        Click to copy
+                    </div>
+                    <div class="key-reveal-warning">
+                        ⚠️ Copy this key now — you won't be able to see it again!
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="closeCreateKeyModal(); loadKeys();">Done — I've Saved
+                        It</button>
+                </div>
+            </div>
+
+            <form id="create-key-form" onsubmit="handleCreateKey(event)">
+                <div class="form-group">
+                    <label>Key Name</label>
+                    <input type="text" id="key-name-input" placeholder="e.g. Production Server" required maxlength="100"
+                        autofocus>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeCreateKeyModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="create-key-btn">Generate Key</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ═══════════════════════════════════════════════════
+        // Supabase + State
+        // ═══════════════════════════════════════════════════
+        let supabaseClient;
+        let currentSession = null;
+        let baseUrl = '';
+
+        async function init() {
+            baseUrl = window.location.origin;
+
+            // Load Supabase config from our API
+            try {
+                const resp = await fetch(`${baseUrl}/v1/auth/config`);
+                if (resp.ok) {
+                    const cfg = await resp.json();
+                    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+                }
+            } catch (e) {
+                console.error('Failed to load Supabase config:', e);
+            }
+
+            if (!supabaseClient) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast('Supabase is not configured', 'error');
+                return;
+            }
+
+            // Check session
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = '/auth';
+                return;
+            }
+
+            currentSession = session;
+            setupUI();
+            loadOverview();
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function setupUI() {
+            const email = currentSession.user.email || '';
+            document.getElementById('user-email').textContent = email;
+            document.getElementById('user-avatar').textContent = email.charAt(0).toUpperCase();
+        }
+
+        init();
+
+        // ═══════════════════════════════════════════════════
+        // Navigation
+        // ═══════════════════════════════════════════════════
+        function showPage(page, linkEl) {
+            // Update sidebar
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+            if (linkEl) linkEl.classList.add('active');
+
+            // Switch page
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+
+            // Load page-specific data
+            if (page === 'overview') loadOverview();
+            if (page === 'keys') loadKeys();
+            if (page === 'usage') loadUsage(30);
+            if (page === 'profile') loadProfile();
+
+            return false;
+        }
+
+        // ═══════════════════════════════════════════════════
+        // API Helper
+        // ═══════════════════════════════════════════════════
+        async function apiCall(method, path, body) {
+            const token = currentSession?.access_token;
+            const opts = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            };
+            if (body) opts.body = JSON.stringify(body);
+
+            const resp = await fetch(`${baseUrl}${path}`, opts);
+            return resp.json();
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Overview
+        // ═══════════════════════════════════════════════════
+        async function loadOverview() {
+            try {
+                const [usageResp, keysResp] = await Promise.all([
+                    apiCall('GET', '/v1/user/usage?days=30'),
+                    apiCall('GET', '/v1/user/api-keys'),
+                ]);
+
+                const usage = usageResp.data;
+                const keys = keysResp.data || [];
+
+                // Stats
+                document.getElementById('overview-total').textContent =
+                    usage ? usage.totalRequests.toLocaleString() : '0';
+
+                const rate = usage && usage.totalRequests > 0
+                    ? Math.round((usage.successfulRequests / usage.totalRequests) * 100) + '%'
+                    : '—';
+                document.getElementById('overview-success').textContent = rate;
+
+                document.getElementById('overview-avg-time').textContent =
+                    usage ? `${usage.avgResponseTimeMs}ms` : '—';
+
+                const activeKeys = keys.filter(k => k.is_active).length;
+                document.getElementById('overview-keys').textContent = activeKeys.toString();
+
+                // Chart
+                if (usage && usage.requestsByDay.length > 0) {
+                    renderChart('overview-chart', usage.requestsByDay);
+                } else {
+                    document.getElementById('overview-chart').innerHTML =
+                        '<div style="display:flex;align-items:center;justify-content:center;height:160px;color:var(--text-muted);font-size:0.85rem;">No request data yet</div>';
+                }
+            } catch (e) {
+                console.error('Failed to load overview:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        // API Keys
+        // ═══════════════════════════════════════════════════
+        async function loadKeys() {
+            try {
+                const resp = await apiCall('GET', '/v1/user/api-keys');
+                const keys = resp.data || [];
+                const container = document.getElementById('keys-list');
+
+                if (keys.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🔑</div>
+                            <h4>No API keys yet</h4>
+                            <p>Generate your first API key to start using the LogExplain API.</p>
+                            <button class="btn btn-primary" onclick="openCreateKeyModal()">Generate Your First Key</button>
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = keys.map(k => `
+                    <div class="key-item">
+                        <div class="key-info">
+                            <div class="key-name">${escapeHtml(k.name)}</div>
+                            <div class="key-prefix">${escapeHtml(k.key_prefix)}••••••••••</div>
+                            <div class="key-meta">
+                                Created ${formatDate(k.created_at)}
+                                ${k.last_used_at ? ` · Last used ${formatDate(k.last_used_at)}` : ' · Never used'}
+                            </div>
+                        </div>
+                        <div class="key-actions">
+                            <span class="key-badge ${k.is_active ? 'active' : 'revoked'}">
+                                ${k.is_active ? 'Active' : 'Revoked'}
+                            </span>
+                            ${k.is_active ? `<button class="btn btn-danger" onclick="revokeKey('${k.id}', '${escapeHtml(k.name)}')">Revoke</button>` : ''}
+                            ${!k.is_active ? `<button class="btn btn-danger" onclick="deleteKey('${k.id}', '${escapeHtml(k.name)}')">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load keys:', e);
+                showToast('Failed to load API keys', 'error');
+            }
+        }
+
+        async function handleCreateKey(e) {
+            e.preventDefault();
+            const name = document.getElementById('key-name-input').value.trim();
+            if (!name) return;
+
+            const btn = document.getElementById('create-key-btn');
+            btn.disabled = true; btn.textContent = 'Generating...';
+
+            try {
+                const resp = await apiCall('POST', '/v1/user/api-keys', { name });
+
+                if (resp.data && resp.data.key) {
+                    // Show the key
+                    document.getElementById('new-key-value').textContent = resp.data.key;
+                    document.getElementById('create-key-form').style.display = 'none';
+                    document.getElementById('key-created-view').style.display = 'block';
+                    showToast('API key generated successfully!', 'success');
+                } else {
+                    showToast(resp.message || 'Failed to create key', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to create API key', 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Generate Key';
+            }
+        }
+
+        async function revokeKey(keyId, name) {
+            if (!confirm(`Revoke API key "${name}"? This will immediately stop any requests using this key.`)) return;
+
+            try {
+                await apiCall('DELETE', `/v1/user/api-keys/${keyId}`);
+                showToast('API key revoked', 'success');
+                loadKeys();
+            } catch (e) {
+                showToast('Failed to revoke key', 'error');
+            }
+        }
+
+        async function deleteKey(keyId, name) {
+            if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+
+            try {
+                await apiCall('DELETE', `/v1/user/api-keys/${keyId}/permanent`);
+                showToast('API key deleted', 'success');
+                loadKeys();
+            } catch (e) {
+                showToast('Failed to delete key', 'error');
+            }
+        }
+
+        function openCreateKeyModal() {
+            document.getElementById('create-key-modal').classList.add('open');
+            document.getElementById('create-key-form').style.display = 'block';
+            document.getElementById('key-created-view').style.display = 'none';
+            document.getElementById('key-name-input').value = '';
+            document.getElementById('key-name-input').focus();
+        }
+
+        function closeCreateKeyModal() {
+            document.getElementById('create-key-modal').classList.remove('open');
+        }
+
+        function copyNewKey() {
+            const key = document.getElementById('new-key-value').textContent;
+            navigator.clipboard.writeText(key).then(() => {
+                showToast('API key copied to clipboard!', 'success');
+            });
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Usage
+        // ═══════════════════════════════════════════════════
+        async function loadUsage(days = 30) {
+            try {
+                const resp = await apiCall('GET', `/v1/user/usage?days=${days}`);
+                const usage = resp.data;
+                if (!usage) return;
+
+                document.getElementById('usage-total').textContent = usage.totalRequests.toLocaleString();
+                document.getElementById('usage-success').textContent = usage.successfulRequests.toLocaleString();
+                document.getElementById('usage-failed').textContent = usage.failedRequests.toLocaleString();
+                document.getElementById('usage-avg').textContent = `${usage.avgResponseTimeMs}ms`;
+
+                // Chart
+                if (usage.requestsByDay.length > 0) {
+                    renderChart('usage-chart', usage.requestsByDay);
+                } else {
+                    document.getElementById('usage-chart').innerHTML =
+                        '<div style="display:flex;align-items:center;justify-content:center;height:160px;color:var(--text-muted);font-size:0.85rem;">No data for this period</div>';
+                }
+
+                // Endpoints
+                const endpointList = document.getElementById('endpoint-list');
+                if (usage.requestsByEndpoint.length > 0) {
+                    const maxCount = usage.requestsByEndpoint[0].count;
+                    endpointList.innerHTML = usage.requestsByEndpoint.map(ep => `
+                        <li class="endpoint-item">
+                            <span class="endpoint-name">${escapeHtml(ep.endpoint)}</span>
+                            <div class="endpoint-bar-bg">
+                                <div class="endpoint-bar-fill" style="width: ${(ep.count / maxCount * 100)}%"></div>
+                            </div>
+                            <span class="endpoint-count">${ep.count}</span>
+                        </li>
+                    `).join('');
+                } else {
+                    endpointList.innerHTML = '<li class="empty-state"><p>No endpoint data yet</p></li>';
+                }
+            } catch (e) {
+                console.error('Failed to load usage:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Profile
+        // ═══════════════════════════════════════════════════
+        async function loadProfile() {
+            try {
+                const resp = await apiCall('GET', '/v1/user/profile');
+                const profile = resp.data;
+
+                document.getElementById('profile-email').value = profile?.email || currentSession.user.email || '';
+                document.getElementById('profile-name').value = profile?.full_name || '';
+                document.getElementById('profile-created').value = formatDate(profile?.created_at || currentSession.user.created_at);
+            } catch (e) {
+                document.getElementById('profile-email').value = currentSession.user.email || '';
+                console.error('Failed to load profile:', e);
+            }
+        }
+
+        async function handleUpdateProfile(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('profile-name').value.trim();
+
+            try {
+                await apiCall('PATCH', '/v1/user/profile', { full_name: fullName });
+                showToast('Profile updated!', 'success');
+            } catch (e) {
+                showToast('Failed to update profile', 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Auth
+        // ═══════════════════════════════════════════════════
+        async function handleLogout() {
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+            }
+            window.location.href = '/auth';
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Chart Renderer
+        // ═══════════════════════════════════════════════════
+        function renderChart(containerId, data) {
+            const container = document.getElementById(containerId);
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:160px;color:var(--text-muted);">No data</div>';
+                return;
+            }
+
+            const maxVal = Math.max(...data.map(d => d.count), 1);
+            container.innerHTML = data.map(d => {
+                const height = Math.max((d.count / maxVal) * 140, 4);
+                const dateLabel = d.date.substring(5); // MM-DD
+                return `
+                    <div class="chart-bar-wrapper">
+                        <div class="chart-bar" style="height: ${height}px;">
+                            <div class="chart-tooltip">${d.count} req</div>
+                        </div>
+                        <span class="chart-bar-label">${dateLabel}</span>
+                    </div>`;
+            }).join('');
+        }
+
+        // ═══════════════════════════════════════════════════
+        // Utilities
+        // ═══════════════════════════════════════════════════
+        function formatDate(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return str.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('create-key-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeCreateKeyModal();
+        });
+
+        // ESC to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeCreateKeyModal();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { LogsModule } from './logs/logs.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
+import { SupabaseModule } from './supabase/supabase.module';
+import { UserModule } from './user/user.module';
+import { UsageInterceptor } from './auth/usage.interceptor';
 
 @Module({
   imports: [
@@ -23,15 +26,21 @@ import { HealthModule } from './health/health.module';
     ]),
 
     // ─── Feature modules ────────────────────────────
+    SupabaseModule,
     AuthModule,
     LogsModule,
     HealthModule,
+    UserModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UsageInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule { }
