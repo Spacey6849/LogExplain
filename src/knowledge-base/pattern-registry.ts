@@ -5,6 +5,11 @@ import { authPatterns } from './patterns/auth.patterns';
 import { systemPatterns } from './patterns/system.patterns';
 import { apiPatterns } from './patterns/api.patterns';
 import { configPatterns } from './patterns/config.patterns';
+import { kubernetesPatterns } from './patterns/kubernetes.patterns';
+import { dockerPatterns } from './patterns/docker.patterns';
+import { cloudPatterns } from './patterns/cloud.patterns';
+import { messagingPatterns } from './patterns/messaging.patterns';
+import { infrastructurePatterns } from './patterns/infrastructure.patterns';
 
 // ──────────────────────────────────────────────────────────
 // Pattern Registry
@@ -23,6 +28,11 @@ export class PatternRegistry {
       ...systemPatterns,
       ...apiPatterns,
       ...configPatterns,
+      ...kubernetesPatterns,
+      ...dockerPatterns,
+      ...cloudPatterns,
+      ...messagingPatterns,
+      ...infrastructurePatterns,
     ];
 
     // Build keyword index for fast lookup

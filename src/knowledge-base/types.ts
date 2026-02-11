@@ -22,6 +22,13 @@ export type LogCategory =
   | 'ssl_tls'
   | 'process'
   | 'kernel'
+  | 'kubernetes'
+  | 'docker'
+  | 'messaging'
+  | 'cloud'
+  | 'caching'
+  | 'email'
+  | 'logging'
   | 'unknown';
 
 export interface LogPattern {

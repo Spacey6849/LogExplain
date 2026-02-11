@@ -1060,11 +1060,11 @@
             </div>
             <div class="stats-bar">
                 <div class="stat-item">
-                    <div class="stat-value">28+</div>
+                    <div class="stat-value">61+</div>
                     <div class="stat-label">Log Patterns</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">6</div>
+                    <div class="stat-value">13</div>
                     <div class="stat-label">Categories</div>
                 </div>
                 <div class="stat-item">
@@ -1115,6 +1115,12 @@
                         <button class="sample-log-btn" onclick="insertSample('memory')">Memory</button>
                         <button class="sample-log-btn" onclick="insertSample('api')">API 500</button>
                         <button class="sample-log-btn" onclick="insertSample('timeout')">Timeout</button>
+                        <button class="sample-log-btn" onclick="insertSample('k8s')">K8s Pod</button>
+                        <button class="sample-log-btn" onclick="insertSample('docker')">Docker</button>
+                        <button class="sample-log-btn" onclick="insertSample('lambda')">Lambda</button>
+                        <button class="sample-log-btn" onclick="insertSample('redis')">Redis</button>
+                        <button class="sample-log-btn" onclick="insertSample('deadlock')">Deadlock</button>
+                        <button class="sample-log-btn" onclick="insertSample('ssl')">SSL/TLS</button>
                     </div>
                     <div class="input-group">
                         <label for="log-input">Raw Log(s)</label>
@@ -1317,7 +1323,13 @@ console.log(<span class="string">`Fix: ${result.explanation.recommendedActions}`
             network: '2025-03-10T22:45:12Z ERROR [nginx] upstream timed out (110: Connection timed out) while connecting to upstream, client: 203.0.113.50, server: api.example.com',
             memory: '2025-07-01T03:22:45Z CRITICAL [SystemMonitor] Memory usage exceeded threshold: 95.2% used (15.2GB/16GB) - OOM killer may be triggered',
             api: '2025-08-15T11:30:00Z ERROR [ExpressServer] Internal Server Error 500 on POST /api/v2/users - TypeError: Cannot read properties of undefined',
-            timeout: '2025-09-05T16:45:22Z ERROR [HTTPClient] Request timeout after 30000ms to https://payment-gateway.example.com/charge - ETIMEDOUT'
+            timeout: '2025-09-05T16:45:22Z ERROR [HTTPClient] Request timeout after 30000ms to https://payment-gateway.example.com/charge - ETIMEDOUT',
+            k8s: '2025-10-12T08:15:30Z ERROR [kubelet] Back-off restarting failed container app-server in pod api-deployment-7d4b8c6f9-x2k4m_production(abc123) - CrashLoopBackOff',
+            docker: '2025-11-03T14:22:10Z ERROR [dockerd] Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?',
+            lambda: '2025-12-01T20:05:44Z ERROR [AWS Lambda] Task timed out after 30.03 seconds - RequestId: a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            redis: '2025-09-18T11:42:33Z ERROR [RedisClient] Redis connection refused - ECONNREFUSED 10.0.2.15:6379 - NOAUTH Authentication required',
+            deadlock: '2025-08-22T03:55:18Z ERROR [MySQL] Deadlock found when trying to get lock; try restarting transaction - Error 1213',
+            ssl: '2025-07-30T16:08:55Z ERROR [TLSClient] SSL handshake failed: certificate has expired - ERR_CERT_DATE_INVALID for api.partner.com:443'
         };
 
         function insertSample(type) {
