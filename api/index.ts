@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 let cachedServer: any;
@@ -25,6 +26,17 @@ async function bootstrapServer() {
     );
 
     app.setGlobalPrefix('v1');
+
+    // Re-enable Swagger
+    const swaggerConfig = new DocumentBuilder()
+        .setTitle('LogExplain API')
+        .setDescription('Serverless Log Interpretation API')
+        .setVersion('1.0')
+        .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')
+        .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document);
 
     await app.init();
     const instance = app.getHttpAdapter().getInstance();
