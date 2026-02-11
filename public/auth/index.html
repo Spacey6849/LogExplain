@@ -314,8 +314,8 @@
 
         <div class="auth-card">
             <div class="auth-tabs">
-                <button class="auth-tab active" onclick="switchMode('login')">Sign In</button>
-                <button class="auth-tab" onclick="switchMode('register')">Create Account</button>
+                <button class="auth-tab active" onclick="switchMode('login', this)">Sign In</button>
+                <button class="auth-tab" onclick="switchMode('register', this)">Create Account</button>
             </div>
 
             <div id="message" class="message"></div>
@@ -376,8 +376,10 @@
                 const resp = await fetch('/v1/auth/config');
                 if (resp.ok) {
                     const cfg = await resp.json();
-                    supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-                    return;
+                    if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+                        supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+                        return;
+                    }
                 }
             } catch (e) { /* fallback below */ }
 
@@ -400,9 +402,9 @@
         initSupabase().then(checkSession);
 
         // ── UI Switching ───────────────────────────────────
-        function switchMode(mode) {
+        function switchMode(mode, el) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            if (el) el.classList.add('active');
             document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
             document.getElementById('register-form').style.display = mode === 'register' ? 'block' : 'none';
             clearMessage();

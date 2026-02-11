@@ -1032,7 +1032,9 @@
                 const resp = await fetch(`${baseUrl}/v1/auth/config`);
                 if (resp.ok) {
                     const cfg = await resp.json();
-                    supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+                    if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
+                        supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+                    }
                 }
             } catch (e) {
                 console.error('Failed to load Supabase config:', e);
